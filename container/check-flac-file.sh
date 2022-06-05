@@ -24,6 +24,15 @@ if [ -n "${REDIS_HOST}" ]; then
         echo "Cache hit: ${INPUT_FILE} : ${CACHED_RESULT}"
         exit 0
     fi
+
+    # Try to lock for processing of this file
+    PROCESS_LOCK=$(redis-cli -h ${REDIS_HOST} SET ${REDIS_HASH}-lock "true" NX EX 60)
+    if [ "x${PROCESS_LOCK}" != "xOK" ]; then
+        echo "Could not obtain processing lock: ${INPUT_FILE}"
+        exit 0
+    else
+        echo "Issued 60 second processing lock: ${INPUT_FILE}"
+    fi
 fi
 
 # Convert to WAV for analysis
