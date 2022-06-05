@@ -2,4 +2,9 @@
 
 set -o xtrace
 
-find /input -type f -name \*.flac -print0 | xargs -0 -I{} /usr/local/bin/check-flac-file.sh {}
+if [ -z "${PARALLEL}" ]; then
+    PARALLEL=1
+fi
+
+find /input -type f -name \*.flac -print0 \
+    | xargs --null --no-run-if-empty -P${PARALLEL} -I{} /usr/local/bin/check-flac-file.sh {}
