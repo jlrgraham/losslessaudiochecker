@@ -18,7 +18,7 @@ INPUT_BASENAME=$(basename "${INPUT_FILE}")
 REDIS_HASH=$(echo "${FSTAT} ${INPUT_BASENAME}" | sha256sum | cut -d" " -f1)
 
 if [ -n "${REDIS_HOST}" ]; then
-    CACHED_RESULT=$(redis-cli -h ${REDIS_HOST} GET ${REDIS_HASH})
+    CACHED_RESULT=$(redis-cli -h ${REDIS_HOST} HGET ${REDIS_HASH} result)
 
     if [ -n "${CACHED_RESULT}" ]; then
         echo "Cache hit: ${INPUT_FILE} : ${CACHED_RESULT}"
@@ -49,7 +49,7 @@ flac \
 RESULT=$(awk '/^Result: .*/ {print $2}' "${LAC_RESULTS}")
 
 if [ -n "${REDIS_HOST}" ]; then
-    redis-cli -h ${REDIS_HOST} SET ${REDIS_HASH} ${RESULT}
+    redis-cli -h ${REDIS_HOST} HSET ${REDIS_HASH} result ${RESULT} path "${INPUT_FILE}" filename "${INPUT_BASENAME}"
 fi
 
 if [ "x${RESULT}" != "xClean" ]; then
