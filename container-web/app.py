@@ -58,7 +58,10 @@ def get_results(r):
             key_str = key.decode()
             if key_str.endswith("-lock"):
                 continue
-            data = r.hgetall(key)
+            try:
+                data = r.hgetall(key)
+            except redis.exceptions.ResponseError:
+                continue
             if not data or b"result" not in data:
                 continue
             rows.append({
