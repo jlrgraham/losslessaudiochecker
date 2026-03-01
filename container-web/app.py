@@ -1,5 +1,6 @@
 import os
 import redis
+from collections import defaultdict
 from flask import Flask, render_template_string, request
 
 app = Flask(__name__)
@@ -15,7 +16,7 @@ TEMPLATE = """
   <title>Lossless Audio Checker Results</title>
   <style>
     body { font-family: monospace; padding: 2em; }
-    table { border-collapse: collapse; width: 100%; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 2em; }
     th, td { border: 1px solid #ccc; padding: 0.4em 0.8em; text-align: left; }
     th { background: #eee; }
     .clean { color: green; }
@@ -24,6 +25,7 @@ TEMPLATE = """
     .filters { margin-bottom: 1.5em; }
     .filters a { margin-right: 1em; text-decoration: none; }
     .filters a.active { font-weight: bold; text-decoration: underline; }
+    h2 { margin-top: 1.5em; }
   </style>
 </head>
 <body>
@@ -38,6 +40,26 @@ TEMPLATE = """
     <a href="/?filter=clean" class="{{ 'active' if filter == 'clean' }}">Clean</a>
     <a href="/?filter=notclean" class="{{ 'active' if filter == 'notclean' }}">Not Clean</a>
   </div>
+
+  <h2>By Directory</h2>
+  <table>
+    <tr>
+      <th>Status</th>
+      <th>Directory</th>
+      <th>Files</th>
+    </tr>
+    {% for dir in dirs %}
+    <tr>
+      <td class="{{ 'clean' if dir.all_clean else 'notclean' }}">
+        {{ 'Clean' if dir.all_clean else 'Not Clean' }}
+      </td>
+      <td>{{ dir.prefix }}</td>
+      <td>{{ dir.count }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <h2>Files</h2>
   <table>
     <tr>
       <th>Result</th>
@@ -83,6 +105,19 @@ def get_results(r):
     return rows
 
 
+def build_dir_report(rows):
+    dirs = defaultdict(lambda: {"count": 0, "all_clean": True})
+    for row in rows:
+        prefix = os.path.dirname(row["path"])
+        dirs[prefix]["count"] += 1
+        if row["result"] != "Clean":
+            dirs[prefix]["all_clean"] = False
+    return sorted(
+        [{"prefix": p, **v} for p, v in dirs.items()],
+        key=lambda d: (not d["all_clean"], d["prefix"]),
+    )
+
+
 @app.route("/")
 def index():
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
@@ -101,6 +136,7 @@ def index():
     return render_template_string(
         TEMPLATE,
         rows=rows,
+        dirs=build_dir_report(all_rows),
         total=len(all_rows),
         clean=clean,
         not_clean=len(all_rows) - clean,
