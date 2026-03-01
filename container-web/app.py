@@ -21,6 +21,7 @@ TEMPLATE = """
     th { background: #eee; }
     .clean { color: green; }
     .notclean { color: red; font-weight: bold; }
+    .processing { color: darkorange; }
     .summary { margin-bottom: 1em; }
     .filters { margin-bottom: 1.5em; }
     .filters a { margin-right: 1em; text-decoration: none; }
@@ -34,7 +35,25 @@ TEMPLATE = """
     Total: {{ total }} &nbsp;|&nbsp;
     <span class="clean">Clean: {{ clean }}</span> &nbsp;|&nbsp;
     <span class="notclean">Not clean: {{ not_clean }}</span>
+    {% if processing %}
+    &nbsp;|&nbsp; <span class="processing">Processing: {{ processing|length }}</span>
+    {% endif %}
   </div>
+
+  {% if processing %}
+  <h2>Currently Processing</h2>
+  <table>
+    <tr>
+      <th>File</th>
+    </tr>
+    {% for path in processing %}
+    <tr>
+      <td class="processing">{{ path }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
   <div class="filters">
     <a href="/" class="{{ 'active' if filter == 'all' }}">All</a>
     <a href="/?filter=clean" class="{{ 'active' if filter == 'clean' }}">Clean</a>
@@ -79,14 +98,18 @@ TEMPLATE = """
 """
 
 
-def get_results(r):
+def get_all_data(r):
     rows = []
+    processing = []
     cursor = 0
     while True:
         cursor, keys = r.scan(cursor, count=100)
         for key in keys:
             key_str = key.decode()
             if key_str.endswith("-lock"):
+                path = r.get(key)
+                if path:
+                    processing.append(path.decode())
                 continue
             try:
                 data = r.hgetall(key)
@@ -102,7 +125,8 @@ def get_results(r):
         if cursor == 0:
             break
     rows.sort(key=lambda r: r["path"])
-    return rows
+    processing.sort()
+    return rows, processing
 
 
 def build_dir_report(rows):
@@ -123,7 +147,7 @@ def build_dir_report(rows):
 @app.route("/")
 def index():
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
-    all_rows = get_results(r)
+    all_rows, processing = get_all_data(r)
     clean = sum(1 for row in all_rows if row["result"] == "Clean")
 
     filter_param = request.args.get("filter", "all")
@@ -139,6 +163,7 @@ def index():
         TEMPLATE,
         rows=rows,
         dirs=build_dir_report(all_rows),
+        processing=processing,
         total=len(all_rows),
         clean=clean,
         not_clean=len(all_rows) - clean,

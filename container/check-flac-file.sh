@@ -26,7 +26,7 @@ if [ -n "${REDIS_HOST}" ]; then
     fi
 
     # Try to lock for processing of this file
-    PROCESS_LOCK=$(redis-cli -h ${REDIS_HOST} SET ${REDIS_HASH}-lock "true" NX EX 60)
+    PROCESS_LOCK=$(redis-cli -h ${REDIS_HOST} SET ${REDIS_HASH}-lock "${INPUT_FILE}" NX EX 60)
     if [ "x${PROCESS_LOCK}" != "xOK" ]; then
         echo "Could not obtain processing lock: ${INPUT_FILE}"
         exit 0
