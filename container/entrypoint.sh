@@ -7,4 +7,5 @@ if [ -z "${PARALLEL}" ]; then
 fi
 
 find /input -type f -name \*.flac -print0 \
+    | sort -z \
     | xargs --null --no-run-if-empty -P${PARALLEL} -I{} /usr/local/bin/check-flac-file.sh {}
