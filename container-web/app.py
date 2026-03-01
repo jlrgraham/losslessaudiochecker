@@ -50,8 +50,8 @@ TEMPLATE = """
     </tr>
     {% for dir in dirs %}
     <tr>
-      <td class="{{ 'clean' if dir.all_clean else 'notclean' }}">
-        {{ 'Clean' if dir.all_clean else 'Not Clean' }}
+      <td class="{{ 'clean' if dir.clean_count == dir.count else 'notclean' }}">
+        {{ dir.clean_count }}/{{ dir.count }} clean ({{ dir.pct_clean }}%)
       </td>
       <td>{{ dir.prefix }}</td>
       <td>{{ dir.count }}</td>
@@ -106,16 +106,18 @@ def get_results(r):
 
 
 def build_dir_report(rows):
-    dirs = defaultdict(lambda: {"count": 0, "all_clean": True})
+    dirs = defaultdict(lambda: {"count": 0, "clean_count": 0})
     for row in rows:
         prefix = os.path.dirname(row["path"])
         dirs[prefix]["count"] += 1
-        if row["result"] != "Clean":
-            dirs[prefix]["all_clean"] = False
-    return sorted(
-        [{"prefix": p, **v} for p, v in dirs.items()],
-        key=lambda d: (not d["all_clean"], d["prefix"]),
-    )
+        if row["result"] == "Clean":
+            dirs[prefix]["clean_count"] += 1
+    result = []
+    for prefix, d in dirs.items():
+        pct = round(100 * d["clean_count"] / d["count"]) if d["count"] else 0
+        result.append({"prefix": prefix, "count": d["count"],
+                        "clean_count": d["clean_count"], "pct_clean": pct})
+    return sorted(result, key=lambda d: (d["pct_clean"], d["prefix"]))
 
 
 @app.route("/")
