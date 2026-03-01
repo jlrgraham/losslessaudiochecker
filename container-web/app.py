@@ -1,6 +1,6 @@
 import os
 import redis
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request
 
 app = Flask(__name__)
 
@@ -20,7 +20,10 @@ TEMPLATE = """
     th { background: #eee; }
     .clean { color: green; }
     .notclean { color: red; font-weight: bold; }
-    .summary { margin-bottom: 1.5em; }
+    .summary { margin-bottom: 1em; }
+    .filters { margin-bottom: 1.5em; }
+    .filters a { margin-right: 1em; text-decoration: none; }
+    .filters a.active { font-weight: bold; text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -29,6 +32,11 @@ TEMPLATE = """
     Total: {{ total }} &nbsp;|&nbsp;
     <span class="clean">Clean: {{ clean }}</span> &nbsp;|&nbsp;
     <span class="notclean">Not clean: {{ not_clean }}</span>
+  </div>
+  <div class="filters">
+    <a href="/" class="{{ 'active' if filter == 'all' }}">All</a>
+    <a href="/?filter=clean" class="{{ 'active' if filter == 'clean' }}">Clean</a>
+    <a href="/?filter=notclean" class="{{ 'active' if filter == 'notclean' }}">Not Clean</a>
   </div>
   <table>
     <tr>
@@ -78,14 +86,25 @@ def get_results(r):
 @app.route("/")
 def index():
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
-    rows = get_results(r)
-    clean = sum(1 for row in rows if row["result"] == "Clean")
+    all_rows = get_results(r)
+    clean = sum(1 for row in all_rows if row["result"] == "Clean")
+
+    filter_param = request.args.get("filter", "all")
+    if filter_param == "clean":
+        rows = [row for row in all_rows if row["result"] == "Clean"]
+    elif filter_param == "notclean":
+        rows = [row for row in all_rows if row["result"] != "Clean"]
+    else:
+        filter_param = "all"
+        rows = all_rows
+
     return render_template_string(
         TEMPLATE,
         rows=rows,
-        total=len(rows),
+        total=len(all_rows),
         clean=clean,
-        not_clean=len(rows) - clean,
+        not_clean=len(all_rows) - clean,
+        filter=filter_param,
     )
 
 
