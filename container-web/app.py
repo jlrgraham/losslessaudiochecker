@@ -101,7 +101,7 @@ def get_results(r):
             })
         if cursor == 0:
             break
-    rows.sort(key=lambda r: (r["result"] != "Clean", r["path"]))
+    rows.sort(key=lambda r: r["path"])
     return rows
 
 
