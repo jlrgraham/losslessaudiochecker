@@ -117,7 +117,7 @@ def build_dir_report(rows):
         pct = round(100 * d["clean_count"] / d["count"]) if d["count"] else 0
         result.append({"prefix": prefix, "count": d["count"],
                         "clean_count": d["clean_count"], "pct_clean": pct})
-    return sorted(result, key=lambda d: (d["pct_clean"], d["prefix"]))
+    return sorted(result, key=lambda d: d["prefix"])
 
 
 @app.route("/")
